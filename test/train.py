@@ -129,6 +129,9 @@ def train(topological):
             out, mean, log_var = model(data)
             vae_loss = binary_cross_entropy(out, data) + KL(mean, log_var)
 
+            #! much better idea: enforce the topological loss on just each val_data[i] to encourage the regularization *per class*, not overall
+            #! of course, should do some exploration first. See what happens in the latent space...
+
             if topological:
                 topological_loss = h1_loss(out)     #! might have to fix later if the latent space is made more than 2D?
             else:
