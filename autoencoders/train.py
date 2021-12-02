@@ -25,8 +25,7 @@ torch.manual_seed(0)
 #----------------------------------------
 # Datasets
 #----------------------------------------
-data_dir = 'data'
-
+data_dir = '../data'
 train_dataset = torchvision.datasets.MNIST(data_dir, transform=transforms.ToTensor(), train=True, download=True)
 test_dataset  = torchvision.datasets.MNIST(data_dir, transform=transforms.ToTensor(), train=False, download=True)
 
