@@ -93,9 +93,11 @@ def train(**config):
                     # example generated images
                     z = torch.randn(96, config['n_latent']).to(device)
                     img = model.decode(z).view(-1, 1, 28, 28).cpu()
-                    path = 'img/AE-top/' if config['topological'] else 'img/AE/'
-                    Path(path).mkdir(parents=True, exist_ok=True)
-                    save_image(img, path + str(epoch + 1) + '_epochs.png')
+                    # path = 'img/AE-top/' if config['topological'] else 'img/AE/'
+                    # Path(path).mkdir(parents=True, exist_ok=True)
+                    # save_image(img, path + str(epoch + 1) + '_epochs.png')
+                    addon = '-top' if config['topological'] else ''
+                    wandb.log({f'img{addon}': wandb.Image(img)})
 
                     # plot example points in latent space
                     # reduce dimension to 2D in order to plot
@@ -118,7 +120,7 @@ defaults = dict(
         seed = 0,
         num_epochs = 100,
         batch_size = 128,
-        save_iter = 20,
+        save_iter = 1,
         lr = 3e-4,
         data_size = 28 * 28,
         n_h = 64,
