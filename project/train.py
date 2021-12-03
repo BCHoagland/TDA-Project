@@ -29,6 +29,8 @@ def plot_latent(val_data_by_class, model, epoch, topological, show=False):
 
 # start training
 def train(**config):
+    device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+
     # fix random seed
     random.seed(0)
     torch.manual_seed(0)
@@ -43,12 +45,13 @@ def train(**config):
     #     val_data_by_class[i] = val_data[idx].squeeze()
 
     # models
-    rips = Rips(max_edge_length=0.5)
-    model = AE(config['data_size'], config['lr'], config['n_h'], config['n_latent'])
+    rips = Rips(max_edge_length=0.5).to(device)
+    model = AE(config['data_size'], config['lr'], config['n_h'], config['n_latent']).to(device)
 
     # loss based on 0-dimensional persistent homology death times
     # small death time = bad
     # outside unit disk = bad
+    # pts should already be on GPU
     def h_loss(pts):
         deaths = rips(pts)
         total_0pers = torch.sum(deaths)
@@ -63,6 +66,8 @@ def train(**config):
         # minibatch optimization with Adam
         batch_losses = []
         for data in dataset.batches():
+            data = data.to(device)
+
             enc = model.encode(data)
             out = model.decode(enc)
             # out = model(data)
@@ -79,15 +84,15 @@ def train(**config):
             model.minimize(ae_loss + topological_loss)
 
             with torch.no_grad():
-                batch_losses.append(ae_loss.item())
+                batch_losses.append(ae_loss.cpu().item())
 
         with torch.no_grad():
             # save images periodically
             if epoch % config['save_iter'] == config['save_iter'] - 1:
                 with torch.no_grad():
                     # example generated images
-                    z = torch.randn(96, config['n_latent'])
-                    img = model.decode(z).view(-1, 1, 28, 28)
+                    z = torch.randn(96, config['n_latent']).to(device)
+                    img = model.decode(z).view(-1, 1, 28, 28).cpu()
                     path = 'img/AE-top/' if config['topological'] else 'img/AE/'
                     Path(path).mkdir(parents=True, exist_ok=True)
                     save_image(img, path + str(epoch + 1) + '_epochs.png')
@@ -111,7 +116,7 @@ def train(**config):
 defaults = dict(
         topological = True,
         seed = 0,
-        num_epochs = 3,
+        num_epochs = 100,
         batch_size = 128,
         save_iter = 20,
         lr = 3e-4,
@@ -120,7 +125,7 @@ defaults = dict(
         n_latent = 4
     )
 
-wandb.init(project='TDA-autoencoders', config=defaults)
+wandb.init(project='TDA-autoencoders', entity='bchoagland', config=defaults)
 config = wandb.config
 train(**defaults)
 
