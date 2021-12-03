@@ -13,6 +13,7 @@ sklearn = "*"
 pandas = "*"
 tqdm = "*"
 plotly = "*"
+wandb = "*"
 
 [dev-packages]
 
