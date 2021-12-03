@@ -24,7 +24,7 @@ class AE(nn.Module):
             nn.Sigmoid()
         )
 
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=3e-4)
 
     def forward(self, x):
         return self.decoder(self.encoder(x))

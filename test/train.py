@@ -10,115 +10,58 @@ from model import AE, Rips
 from data import MNIST
 
 
-# fix random seed
-torch.manual_seed(0)
-np.random.seed(0)
-
 # hyperparameters
-num_epochs = 100
-batch_size = 128
+num_epochs = 50
+batch_size = 256
 save_iter = 5
 
 data_size = 28 * 28
 n_h = 10
-n_latent = 2
+n_latent = 4                #! try this with 3 dimensions to see if you can plot it still
 
-# instantiate model and dataset
-model = AE(data_size, n_h, n_latent)
-dataset = MNIST(batch_size)
-
-# fix data that we wil track throughout training
-data, labels = next(dataset.batches(labels=True))
-val_data = [0] * 10
-for i in range(10):
-    idx = (labels == i).nonzero()
-    val_data[i] = data[idx].squeeze()
-
-
-def plot_latent(val_data, model, epoch, topological):
-    with torch.no_grad():
-        for i in range(10):
-            encoded = model.encode(val_data[i])
-            plt.scatter(encoded[:,0], encoded[:,1])
-
-        path = 'img/latent/AE-top/' if topological else 'img/latent/AE/'
-        Path(path).mkdir(parents=True, exist_ok=True)
-        plt.savefig(path + str(epoch) + '.png')
-        # plt.show()
-
-    # rips = gd.RipsComplex(
-    #     distance_matrix = encoded,
-    #     max_edge_length = 2
-    # ).create_simplex_tree(max_dimension=2)
-    # barcodes = rips.persistence()
-    # rips.compute_persistence()
-    # print(rips.betti_numbers())
-
-# plot_latent(val_data, model, 0)
+# fix data
+#! redo how getting data works since this is messy
+def get_data():
+    dataset = MNIST(batch_size)
+    val_data, labels = next(dataset.batches(labels=True))
+    val_data_by_class = [0] * 10
+    for i in range(10):
+        idx = (labels == i).nonzero()
+        val_data_by_class[i] = val_data[idx].squeeze()
+    return dataset, val_data_by_class
 
 
-# ==========
-def rips_test():
-    rips = Rips(max_edge_length=0.5)
-
-    def h_loss(pts):
-        deaths = rips(pts)
-        total_0pers = torch.sum(deaths)
-        # total_1pers = torch.sum(dgm1[:, 1] - dgm1[:, 0])
-        # total_0pers = torch.sum(deaths ** 2)
-        disk = (pts ** 2).sum(-1) - 1
-        disk = torch.max(disk, torch.zeros_like(disk)).sum()
-        # return -total_0pers -total_1pers + 1*disk
-        return -total_0pers + 1*disk
-
-    # def h_loss(pts):
-    #     dgm1 = rips(pts)
-    #     total_1pers = torch.sum(dgm1[:, 1] - dgm1[:, 0])
-    #     disk = (pts ** 2).sum(-1) - 1
-    #     disk = torch.max(disk, torch.zeros_like(disk)).sum()
-    #     return -total_1pers + 1*disk
-
-    with torch.no_grad():
-        orig_pts = model.encode(val_data[0])
-        # plt.clf()
-        # plt.scatter(orig_pts.numpy()[:, 0], orig_pts.numpy()[:, 1])
-        # plt.show()
-
-    # from torch.optim.lr_scheduler import LambdaLR
-    opt = torch.optim.SGD(model.parameters(), lr=1e-4)
-    # scheduler = LambdaLR(opt, [lambda epoch: 10. / (10 + epoch)])
-    losses = []
-
-    for i in range(1000):
-        pts = model.encode(val_data[0])
-        opt.zero_grad()
-        l = h_loss(pts)
-        l.backward()
-        losses.append(l.detach().item())
-        opt.step()
-        # scheduler.step()
-
-    plt.clf()
-    plt.plot(losses)
-    plt.show()
+def plot_latent(val_data_by_class, model, epoch, topological, show=False):
     with torch.no_grad():
         plt.clf()
-        plt.scatter(orig_pts.numpy()[:, 0], orig_pts.numpy()[:, 1], label='original')
-        # plt.show()
+        for i in range(10):
+            encoded = model.encode(val_data_by_class[i])
+            plt.scatter(encoded[:,0], encoded[:,1])
 
-        pts = model.encode(val_data[0])
-        # plt.clf()
-        plt.scatter(pts.numpy()[:, 0], pts.numpy()[:, 1], label='optimized')
-        plt.legend()
-        plt.show()
+        if show:
+            plt.show()
+        else:
+            path = 'img/latent/AE-top/' if topological else 'img/latent/AE/'
+            Path(path).mkdir(parents=True, exist_ok=True)
+            plt.savefig(path + str(epoch) + '.png')
 
-# rips_test()
-# ==========
 
 # start training
 def train(topological):
-    rips = Rips(max_edge_length=0.5)
+    # fix random seed
+    torch.manual_seed(0)
+    np.random.seed(0)
 
+    # get data
+    dataset, val_data_by_class = get_data()
+
+    # models
+    rips = Rips(max_edge_length=0.5)
+    model = AE(data_size, n_h, n_latent)
+
+    # loss based on 0-dimensional persistent homology death times
+    # small death time = bad
+    # outside unit disk = bad
     def h_loss(pts):
         deaths = rips(pts)
         total_0pers = torch.sum(deaths)
@@ -126,8 +69,7 @@ def train(topological):
         disk = torch.max(disk, torch.zeros_like(disk)).sum()
         return -total_0pers + 1*disk
 
-    model = AE(data_size, n_h, n_latent)
-
+    # training loop
     epoch_losses = []
     for epoch in range(num_epochs):
 
@@ -162,7 +104,9 @@ def train(topological):
                 Path(path).mkdir(parents=True, exist_ok=True)
                 save_image(img, path + str(epoch + 1) + '_epochs.png')
 
-                plot_latent(val_data, model, epoch + 1, topological)
+                # plot example points in latent space
+                # reduce dimension to 2D in order to plot
+                # plot_latent(val_data_by_class, model, epoch + 1, topological)
 
         # report loss
         print(f'Epoch {epoch}: loss {ae_loss.item()}')
@@ -172,8 +116,8 @@ def train(topological):
 
 #! figure out why training both makes topological training have weird latent space
 l1 = train(topological=False)
-quit('stopped before doing topological training')
 l2 = train(topological=True)
+# quit('done')
 plt.clf()
 plt.plot(l1, label='standard')
 plt.plot(l2, label='h')
