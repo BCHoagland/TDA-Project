@@ -1,0 +1,17 @@
+program: train.py
+method: grid
+metric:
+  name: Average epoch loss
+  goal: minimize
+parameters:
+  topological:
+    values:
+      - False
+      - True
+  n_latent:
+    values:
+      - 2
+      - 4
+      - 6
+      - 8
+      - 10

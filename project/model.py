@@ -4,7 +4,7 @@ import gudhi as gd
 
 
 class AE(nn.Module):
-    def __init__(self, data_size, n_h, n_latent) -> None:
+    def __init__(self, data_size, lr, n_h, n_latent) -> None:
         super().__init__()
 
         self.encoder = nn.Sequential(
@@ -24,7 +24,7 @@ class AE(nn.Module):
             nn.Sigmoid()
         )
 
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=3e-4)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=lr)
 
     def forward(self, x):
         return self.decoder(self.encoder(x))
