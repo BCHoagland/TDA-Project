@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import gudhi as gd
 import numpy as np
 import wandb
+from itertools import chain
 
 from model import AE, VAE, Rips
 from data import MNIST
@@ -59,7 +60,8 @@ def get_data_by_class(data, labels):
 
 # log sample generated images
 def log_generated_images(model, config, epoch):
-    z = torch.randn(96, config['n_latent']).to(device)
+    z = sample_pts(96, config['n_latent'], config).to(device)
+    # z = torch.randn(96, config['n_latent']).to(device)
     img = model.decode(z).view(-1, 1, 28, 28).cpu()
     wandb.log({f'img': wandb.Image(img)}, step=epoch + 1)
 
@@ -67,12 +69,32 @@ def log_generated_images(model, config, epoch):
 # plot points (divided by class) in latent space
 #! reduce dimension to 2D in order to plot
 def log_latent_embeddings(model, val_data_by_class, epoch):
+    n_classes = len(val_data_by_class)
+    col = [None] * n_classes
+    for i in range(n_classes):
+        col[i] = [i / n_classes] * len(val_data_by_class[i])
+
+    pts = torch.cat([v for v in val_data_by_class], dim=0)
+    enc = model.encode(pts)
+    col = list(chain(*[c for c in col]))
+
     plt.clf()
-    for i in range(10):
-        encoded = model.encode(val_data_by_class[i])
-        plt.scatter(encoded[:,0], encoded[:,1])
+    plt.scatter(enc[:,0], enc[:,1], s=10, c=col, cmap='rainbow')
     wandb.log({'latent': wandb.Image(plt)}, step=epoch + 1)
 
+
+# sample 'n_pts' number of 'd'-dimensional points
+# with topological regularization: sample from unit ball
+# w/out topological regularization: sample from Gaussian
+def sample_pts(n_pts, d, config):
+    if config['topological']:
+        N = torch.randn(n_pts, d)
+        norm = N.norm(dim=-1).unsqueeze(dim=-1).repeat(1, d)
+        N = N / norm
+        U = torch.rand(n_pts, 1).repeat(1,d)
+        return N * (U**(1/d))
+    else:
+        return torch.randn(n_pts, d)
 
 # start training
 def train(**config):
@@ -134,10 +156,10 @@ def train(**config):
 # TRAINING #
 ############
 defaults = dict(
-        model = 'VAE',
+        model = 'AE',
         topological = True,
         seed = 0,
-        num_epochs = 10,
+        num_epochs = 100,
         batch_size = 128,
         save_iter = 1,
         lr = 3e-4,
@@ -146,6 +168,8 @@ defaults = dict(
         n_latent = 2
     )
 
-wandb.init(project='TDA-autoencoders', entity='bchoagland', config=defaults)
+#! 'project' and 'entity' ignored during sweep. Probably have to specify 'project' in yaml file, and 'entity' might not be necessary
+# wandb.init(project='TDA-autoencoders', entity='bchoagland', config=defaults)
+wandb.init(config=defaults)
 config = wandb.config
 train(**config)

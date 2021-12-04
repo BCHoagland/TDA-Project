@@ -1,3 +1,5 @@
+project: TDA-autoencoders
+entity: bchoagland
 program: train.py
 method: grid
 metric:
