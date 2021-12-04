@@ -107,6 +107,8 @@ def train(**config):
 
             ae_loss, enc = ae_loss_and_enc(model, data, config)
             topological_loss = h_loss(enc, rips) if config['topological'] else 0
+            print(config['topological'], config['model'])
+            quit()
 
             model.minimize(ae_loss + topological_loss)
 
@@ -116,9 +118,9 @@ def train(**config):
         with torch.no_grad():
             # save images periodically
             if epoch % config['save_iter'] == config['save_iter'] - 1:
-                with torch.no_grad():
-                    # log images and latent embeddings
-                    log_generated_images(model, config, epoch)
+                # log images and latent embeddings
+                log_generated_images(model, config, epoch)
+                if config['n_latent'] == 2:
                     log_latent_embeddings(model, val_data_by_class, epoch)
 
             # report loss
@@ -135,9 +137,9 @@ def train(**config):
 ############
 defaults = dict(
         model = 'VAE',
-        topological = False,
+        topological = True,
         seed = 0,
-        num_epochs = 100,
+        num_epochs = 10,
         batch_size = 128,
         save_iter = 1,
         lr = 3e-4,
@@ -148,4 +150,4 @@ defaults = dict(
 
 wandb.init(project='TDA-autoencoders', entity='bchoagland', config=defaults)
 config = wandb.config
-train(**defaults)
+train(**config)
