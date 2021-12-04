@@ -4,6 +4,10 @@ metric:
   name: Average epoch loss
   goal: minimize
 parameters:
+  model:
+    values:
+      - 'AE'
+      - 'VAE'
   topological:
     values:
       - False
