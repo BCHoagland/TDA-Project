@@ -107,8 +107,6 @@ def train(**config):
 
             ae_loss, enc = ae_loss_and_enc(model, data, config)
             topological_loss = h_loss(enc, rips) if config['topological'] else 0
-            print(config['topological'], config['model'])
-            quit()
 
             model.minimize(ae_loss + topological_loss)
 
