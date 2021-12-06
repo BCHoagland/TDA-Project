@@ -44,7 +44,7 @@ def h_loss(pts, rips):
     total_0pers = torch.sum(deaths)
     disk = (pts ** 2).sum(-1) - 1
     disk = torch.max(disk, torch.zeros_like(disk)).sum()
-    return -total_0pers + 1*disk
+    return -total_0pers + disk
 
 
 # take data and labels and split the data up based on class
@@ -124,13 +124,10 @@ def train(**config):
         for data in dataset.batches():
             data = data.to(device)
 
-            #! much better idea: enforce the topological loss on just each val_data[i] to encourage the regularization *per class*, not overall
-            #! of course, should do some exploration first. See what happens in the latent space...
-
             ae_loss, enc = ae_loss_and_enc(model, data, config)
             topological_loss = h_loss(enc, rips) if config['topological'] else 0
 
-            model.minimize(ae_loss + topological_loss)
+            model.minimize(ae_loss + config['regularization_coef'] * topological_loss)
 
             with torch.no_grad():
                 batch_losses.append(ae_loss.cpu().item())
@@ -155,21 +152,34 @@ def train(**config):
 ############
 # TRAINING #
 ############
+#! in definition of Rips model, it has max dimension 0 now. I think that's okay, but who knows...
+
+#! should re-organize everything here. Put particular AE and VAE steps in their own files so there isn't so much clutter and conditional statements
 defaults = dict(
         model = 'AE',
         topological = True,
         seed = 0,
-        num_epochs = 100,
-        batch_size = 128,
+        num_epochs = 400,
+        batch_size = 512,
         save_iter = 1,
         lr = 3e-4,
         data_size = 28 * 28,
         n_h = 64,
-        n_latent = 2
+        n_latent = 2,
+        regularization_coef = 0.2
     )
 
-#! 'project' and 'entity' ignored during sweep. Probably have to specify 'project' in yaml file, and 'entity' might not be necessary
-# wandb.init(project='TDA-autoencoders', entity='bchoagland', config=defaults)
-wandb.init(config=defaults)
+#! trying making *small* H0 per class while still doing big H0 globally
+
+#! for regularization_coef, figure out how to make the relative orders of top_loss and ae_loss the same (or make that of h_loss lower)
+#! try reducing regularization_coef every epoch?
+
+#! FashionMNIST!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+#* use if running this file by itself
+wandb.init(project='TDA-autoencoders-individual', entity='bchoagland', config=defaults)
+#* use if running a sweep; the project and entity should be in the yaml file
+# wandb.init(config=defaults)
+
 config = wandb.config
 train(**config)

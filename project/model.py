@@ -108,7 +108,7 @@ class Rips(nn.Module):
 
     def forward(self, input):
         rips = gd.RipsComplex(points=input, max_edge_length=self.max_edge_length)
-        st = rips.create_simplex_tree(max_dimension=2)
+        st = rips.create_simplex_tree(max_dimension=0)
         st.compute_persistence()
         idx = st.flag_persistence_generators()
 
