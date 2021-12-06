@@ -46,11 +46,16 @@ def h_loss(pts, rips):
     return -total_0pers + disk
 
 N = 100
-d = 2
-pts = torch.randn(N, d, requires_grad=True)
+pts = torch.randn(N, 2, requires_grad=True)
 rips = Rips(max_edge_length=5, max_dimension=1)
-
 optimizer = torch.optim.Adam([pts], lr=1e-2)
+
+# display original points (color-coded based on position)
+with torch.no_grad():
+    c = [p[0]**2 + p[1]**2 for p in pts]
+    plt.clf()
+    plt.scatter(pts[:,0], pts[:,1], c=c, cmap='rainbow')
+    plt.show()
 
 # optimize points
 losses = []
@@ -72,7 +77,8 @@ with torch.no_grad():
     plt.show()
 
     # optimized points
-    plt.scatter(pts[:,0], pts[:,1])
+    plt.clf()
+    plt.scatter(pts[:,0], pts[:,1], c=c, cmap='rainbow')
 
     # reference circle
     x = np.linspace(-1.0, 1.0, 100)

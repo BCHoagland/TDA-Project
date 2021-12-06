@@ -10,7 +10,7 @@ import wandb
 from itertools import chain
 
 from model import AE, VAE, Rips
-from data import MNIST
+from data import Dataset
 
 
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
@@ -20,19 +20,6 @@ def KL(μ, log_var, batch_size, data_size):
     kl = -0.5 * torch.sum(1 + log_var - μ.pow(2) - log_var.exp())
     kl /= batch_size * data_size
     return kl
-
-
-# Base loss for AE and VAE, and also the encoded data
-def ae_loss_and_enc(model, data, config):
-    if config['model'] == 'AE':
-        enc = model.encode(data)
-        out = model.decode(enc)
-        return binary_cross_entropy(out, data), enc
-    # vae_loss
-    elif config['model'] == 'VAE':
-        enc, μ, log_var = model.encode(data, return_extra=True)
-        out = model.decode(enc)
-        return binary_cross_entropy(out, data) + KL(μ, log_var, config['batch_size'], config['data_size']), enc
 
 
 # loss based on 0-dimensional persistent homology death times
@@ -74,7 +61,8 @@ def log_latent_embeddings(model, val_data_by_class, epoch):
     for i in range(n_classes):
         col[i] = [i / n_classes] * len(val_data_by_class[i])
 
-    pts = torch.cat([v for v in val_data_by_class], dim=0)
+    # pts = torch.cat([v for v in val_data_by_class], dim=0).unsqueeze(dim=1)                 #? for convolutional model
+    pts = torch.cat([v for v in val_data_by_class], dim=0)                                  #? for feed-forward model
     enc = model.encode(pts)
     col = list(chain(*[c for c in col]))
 
@@ -104,7 +92,7 @@ def train(**config):
     np.random.seed(0)
 
     # get data
-    dataset = MNIST(config['batch_size'])
+    dataset = Dataset(config['dataset'], config['batch_size'])
     val_data_by_class = get_data_by_class(*next(dataset.batches(labels=True)))
 
     # models
@@ -124,13 +112,22 @@ def train(**config):
         for data in dataset.batches():
             data = data.to(device)
 
-            ae_loss, enc = ae_loss_and_enc(model, data, config)
-            topological_loss = h_loss(enc, rips) if config['topological'] else 0
+            # autoencoder reconstruction loss
+            if config['model'] == 'AE':
+                enc = model.encode(data)
+                out = model.decode(enc)
+                rec_loss = binary_cross_entropy(out, data)
+            # variational autoencoder reconstruction loss
+            elif config['model'] == 'VAE':
+                enc, μ, log_var = model.encode(data, return_extra=True)
+                out = model.decode(enc)
+                rec_loss = binary_cross_entropy(out, data) + KL(μ, log_var, config['batch_size'], config['data_size'])
 
-            model.minimize(ae_loss + config['regularization_coef'] * topological_loss)
+            # total loss = reconstruction loss + topological loss
+            model.minimize(rec_loss + config['top_coef'] * h_loss(enc, rips))
 
             with torch.no_grad():
-                batch_losses.append(ae_loss.cpu().item())
+                batch_losses.append(rec_loss.cpu().item())
 
         with torch.no_grad():
             # save images periodically
@@ -143,7 +140,6 @@ def train(**config):
             # report loss
             avg_epoch_loss = sum(batch_losses) / len(batch_losses)
             wandb.log({'Average epoch loss': avg_epoch_loss}, step=epoch + 1)
-            # print(f'Epoch {epoch + 1}: loss {avg_epoch_loss}')
             epoch_losses.append(avg_epoch_loss)
 
     return epoch_losses
@@ -155,26 +151,31 @@ def train(**config):
 #! in definition of Rips model, it has max dimension 0 now. I think that's okay, but who knows...
 
 #! should re-organize everything here. Put particular AE and VAE steps in their own files so there isn't so much clutter and conditional statements
+
 defaults = dict(
-        model = 'AE',
-        topological = True,
-        seed = 0,
-        num_epochs = 400,
-        batch_size = 512,
-        save_iter = 1,
-        lr = 3e-4,
-        data_size = 28 * 28,
-        n_h = 64,
-        n_latent = 2,
-        regularization_coef = 0.2
-    )
+    dataset = 'MNIST',
+    model = 'AE',
+    topological = True,
+    seed = 0,
+    num_epochs = 100,
+    batch_size = 128,
+    save_iter = 1,
+    lr = 3e-4,
+    data_size = 28 * 28,
+    n_h = 64,
+    n_latent = 2,
+    # pers_coef = 5e-3,
+    # disk_coef = 5e-3
+    top_coef = 5e-3                 #? disk penalty tends to be pretty low, so there's no real need to weight it differently than the persistence loss term
+)
+
+#! using conv networks could speed up training?
 
 #! trying making *small* H0 per class while still doing big H0 globally
 
-#! for regularization_coef, figure out how to make the relative orders of top_loss and ae_loss the same (or make that of h_loss lower)
-#! try reducing regularization_coef every epoch?
+#! could we try training with the regularization for a bit, then turning it off, then sampling via a Gaussian for the extra coverage?
 
-#! FashionMNIST!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#! other coefficient to balance disk penalty vs homological penalty
 
 #* use if running this file by itself
 wandb.init(project='TDA-autoencoders-individual', entity='bchoagland', config=defaults)

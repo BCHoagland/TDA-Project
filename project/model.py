@@ -7,6 +7,36 @@ class AE(nn.Module):
     def __init__(self, data_size, lr, n_h, n_latent) -> None:
         super().__init__()
 
+        # self.encoder = nn.Sequential(
+        #     nn.Conv2d(1,8,3,stride=2,padding=1),
+        #     nn.ReLU(),
+        #     nn.Conv2d(8,16,3,stride=2,padding=1),
+        #     nn.BatchNorm2d(16),
+        #     nn.ReLU(),
+        #     nn.Conv2d(16,32,3,stride=2,padding=0),
+        #     nn.ReLU(),
+        #     nn.Flatten(start_dim=1),
+        #     nn.Linear(3*3*32,128),
+        #     nn.ReLU(),
+        #     nn.Linear(128,n_latent)
+        # )
+        
+        # self.decoder = nn.Sequential(
+        #     nn.Linear(n_latent,128),
+        #     nn.ReLU(),
+        #     nn.Linear(128,3*3*32),
+        #     nn.ReLU(),
+        #     nn.Unflatten(dim=1, unflattened_size=(32,3,3)),
+        #     nn.ConvTranspose2d(32, 16, 3, stride=2, output_padding=0),
+        #     nn.BatchNorm2d(16),
+        #     nn.ReLU(),
+        #     nn.ConvTranspose2d(16, 8, 3, stride=2, padding=1, output_padding=1),
+        #     nn.BatchNorm2d(8),
+        #     nn.ReLU(),
+        #     nn.ConvTranspose2d(8, 1, 3, stride=2, padding=1, output_padding=1),
+        #     nn.Sigmoid()
+        # )
+
         self.encoder = nn.Sequential(
             nn.Linear(data_size, n_h),
             nn.ELU(),
