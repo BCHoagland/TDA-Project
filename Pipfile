@@ -10,9 +10,6 @@ numpy = "*"
 matplotlib = "*"
 gudhi = "*"
 sklearn = "*"
-pandas = "*"
-tqdm = "*"
-plotly = "*"
 wandb = "*"
 
 [dev-packages]

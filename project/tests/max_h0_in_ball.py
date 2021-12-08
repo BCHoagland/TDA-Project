@@ -1,5 +1,4 @@
-# tests to see where points inside the unit ball when maximizing the sum of
-# the 0-dimensional persistent homology death times
+# test to see where points go inside the unit ball when maximizing the degree 0 total persistence
 # while keeping them inside the unit ball
 
 import torch

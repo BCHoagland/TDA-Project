@@ -13,9 +13,6 @@ from model import AE, VAE, Rips
 from data import Dataset
 
 
-device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-
-
 def KL(μ, log_var, batch_size, data_size):
     kl = -0.5 * torch.sum(1 + log_var - μ.pow(2) - log_var.exp())
     kl /= batch_size * data_size
@@ -41,15 +38,15 @@ def get_data_by_class(data, labels):
     data_by_class = [0] * 10
     for i in range(10):
         idx = (labels == i).nonzero()
-        data_by_class[i] = data[idx].squeeze().to(device)
+        data_by_class[i] = data[idx].squeeze()
     return data_by_class
 
 
 # log sample generated images
 def log_generated_images(model, config, epoch):
-    z = sample_pts(96, config['n_latent'], config).to(device)
-    # z = torch.randn(96, config['n_latent']).to(device)
-    img = model.decode(z).view(-1, 1, 28, 28).cpu()
+    z = sample_pts(96, config['n_latent'], config)
+    # z = torch.randn(96, config['n_latent'])
+    img = model.decode(z).view(-1, 1, 28, 28)
     wandb.log({f'img': wandb.Image(img)}, step=epoch + 1)
 
 
@@ -96,12 +93,12 @@ def train(**config):
     val_data_by_class = get_data_by_class(*next(dataset.batches(labels=True)))
 
     # models
-    rips = Rips(max_edge_length=0.5).to(device)
+    rips = Rips(max_edge_length=0.5)
     if config['model'] == 'AE':
         model_type = AE
     elif config['model'] == 'VAE':
         model_type = VAE
-    model = model_type(config['data_size'], config['lr'], config['n_h'], config['n_latent']).to(device)
+    model = model_type(config['data_size'], config['lr'], config['n_h'], config['n_latent'])
 
     # training loop
     epoch_losses = []
@@ -110,7 +107,6 @@ def train(**config):
         # minibatch optimization with Adam
         batch_losses = []
         for data in dataset.batches():
-            data = data.to(device)
 
             # autoencoder reconstruction loss
             if config['model'] == 'AE':
@@ -124,10 +120,11 @@ def train(**config):
                 rec_loss = binary_cross_entropy(out, data) + KL(μ, log_var, config['batch_size'], config['data_size'])
 
             # total loss = reconstruction loss + topological loss
-            model.minimize(rec_loss + config['top_coef'] * h_loss(enc, rips))
+            topological_loss = h_loss(enc, rips) if config['topological'] else 0
+            model.minimize(rec_loss + config['top_coef'] * topological_loss)
 
             with torch.no_grad():
-                batch_losses.append(rec_loss.cpu().item())
+                batch_losses.append(rec_loss.item())
 
         with torch.no_grad():
             # save images periodically
@@ -152,13 +149,15 @@ def train(**config):
 
 #! should re-organize everything here. Put particular AE and VAE steps in their own files so there isn't so much clutter and conditional statements
 
+#! make it so that model automatically reformats input data with squeezes/unsqueezes. Then I won't have to worry about switching between conv and feed-forward
+
 defaults = dict(
     dataset = 'MNIST',
     model = 'AE',
     topological = True,
     seed = 0,
     num_epochs = 100,
-    batch_size = 128,
+    batch_size = 512,
     save_iter = 1,
     lr = 3e-4,
     data_size = 28 * 28,
@@ -173,12 +172,12 @@ defaults = dict(
 
 #! trying making *small* H0 per class while still doing big H0 globally
 
-#! could we try training with the regularization for a bit, then turning it off, then sampling via a Gaussian for the extra coverage?
-
 #! other coefficient to balance disk penalty vs homological penalty
 
+#! do sweep to determine best top_coef
+
 #* use if running this file by itself
-wandb.init(project='TDA-autoencoders-individual', entity='bchoagland', config=defaults)
+wandb.init(project='TDA-autoencoders', entity='bchoagland', config=defaults)
 #* use if running a sweep; the project and entity should be in the yaml file
 # wandb.init(config=defaults)
 
