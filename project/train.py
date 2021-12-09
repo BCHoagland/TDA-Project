@@ -145,8 +145,6 @@ def train(**config):
 ############
 # TRAINING #
 ############
-#! in definition of Rips model, it has max dimension 0 now. I think that's okay, but who knows...
-
 #! should re-organize everything here. Put particular AE and VAE steps in their own files so there isn't so much clutter and conditional statements
 
 #! make it so that model automatically reformats input data with squeezes/unsqueezes. Then I won't have to worry about switching between conv and feed-forward
@@ -167,14 +165,6 @@ defaults = dict(
     # disk_coef = 5e-3
     top_coef = 5e-3                 #? disk penalty tends to be pretty low, so there's no real need to weight it differently than the persistence loss term
 )
-
-#! using conv networks could speed up training?
-
-#! trying making *small* H0 per class while still doing big H0 globally
-
-#! other coefficient to balance disk penalty vs homological penalty
-
-#! do sweep to determine best top_coef
 
 #* use if running this file by itself
 wandb.init(project='TDA-autoencoders', entity='bchoagland', config=defaults)
