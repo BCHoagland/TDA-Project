@@ -1,4 +1,4 @@
-# StyleGAN-TDA
+# TDA-Project
 Persistent homology and generative models
 
 ## what's in here
