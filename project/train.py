@@ -13,12 +13,6 @@ from model import AE, VAE, Rips
 from data import Dataset
 
 
-def KL(μ, log_var, batch_size, data_size):
-    kl = -0.5 * torch.sum(1 + log_var - μ.pow(2) - log_var.exp())
-    kl /= batch_size * data_size
-    return kl
-
-
 # loss based on 0-dimensional persistent homology death times
 # small death time = bad
 # outside unit disk = bad
