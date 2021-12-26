@@ -1,6 +1,6 @@
 class AE():
     
-    def loss(self, batch, model, config):
+    def loss(self, batch, model, rec_loss, params):
         enc = model.encode(batch)
         out = model.decode(enc)
-        return config.rec_loss(out, batch)
+        return rec_loss(out, batch)

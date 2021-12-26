@@ -2,53 +2,51 @@ import sys
 import random
 import torch
 import numpy as np
+from tqdm import tqdm
 
-from data import Dataset
-from models import *
-from algos import *
+from project.data import Dataset
+from project.models import *
+from project.algos import *
 
 
 #! fix 'model' and 'algo' so you don't have to import all
 #! send in E and D architectures, not models themselves
-
-
-class Hyperparams(dict):
-
-    def __getattr__(self, item):
-        return super().__getitem__(item)
-
-    def __setattr__(self, item, value):
-        return super().__setitem__(item, value)
+#! make 'data_size' dynamic
 
 
 class Trainer():
-    def __init__(self, model, algo, dataset, hyperparams, log_online) -> None:
-        self.model = getattr(sys.modules[__name__], model)
-        self.algo = getattr(sys.modules[__name__], algo)
+    def __init__(self, model, algo, rec_loss_fn, dataset, hyperparams) -> None:
+        self.model = getattr(sys.modules[__name__], model)(
+            hyperparams.data_size,
+            hyperparams.lr,
+            hyperparams.n_h,
+            hyperparams.n_latent
+        )
+        self.algo = getattr(sys.modules[__name__], algo)()
+        self.rec_loss = rec_loss_fn
         self.dataset = Dataset(dataset, hyperparams.batch_size)
         self.params = hyperparams
-        self.log_online = log_online
 
-    def train(self):
+    def train(self, ):
         # fix random seed
-        random.seed(0)
-        torch.manual_seed(0)
-        np.random.seed(0)
-
-        # get data
-        dataset = Dataset(self.params.dataset, self.params.batch_size)
+        random.seed(self.params.seed)
+        torch.manual_seed(self.params.seed)
+        np.random.seed(self.params.seed)
 
         # training loop
-        for epoch in range(self.params.num_epochs):
+        for epoch in tqdm(range(self.params.num_epochs)):
 
             # minibatch optimization
-            for batch in dataset.batches():
-                loss = algo.loss(batch)
+            batch_losses = []
+            for batch in self.dataset.batches():
+                loss = self.algo.loss(batch, self.model, self.rec_loss, self.params)
+                self.model.minimize(loss)
 
+                with torch.no_grad():
+                    batch_losses.append(loss.item())
+            
+            # reporting
+            with torch.no_grad():
 
-
-
-hyperparams = Hyperparams(
-    batch_size = 128
-)
-Trainer('AE_Model', 'AE', 'MNIST', hyperparams, None)
+                #! implement callbacks here
+                pass

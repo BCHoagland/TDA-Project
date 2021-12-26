@@ -1,5 +1,5 @@
 import torch
-from models.rips import Rips
+from project.models.rips import Rips
 
 
 class TopAE():
@@ -16,9 +16,9 @@ class TopAE():
         disk = torch.max(disk, torch.zeros_like(disk)).sum()
         return -total_0pers + disk
 
-    def loss(self, batch, model, config):
+    def loss(self, batch, model, rec_loss, params):
         enc = model.encode(batch)
         out = model.decode(enc)
-        rec_loss = config.rec_loss(out, batch)
+        rec_loss = rec_loss(out, batch)
         top_loss = self._top_loss(enc)
-        return rec_loss + top_loss
+        return rec_loss + params.top_coef * top_loss
