@@ -1,6 +1,8 @@
 # TDA-Project
 Persistent homology and generative models
 
+[Results](https://bhoagsbargrill.com/latex/public/hom-ae.pdf)
+
 ## what's in here
 All the relevant code is in the `project` folder. `project/tests` contains individual test scripts that were used to explore various ideas. `train.py` is the main training script. The various models that are used are defined in `model.py`, and the dataloader is defined in `data.py`
 
